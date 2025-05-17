@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mines Game</title>
+  <style>
+    /* THEMES */
+    body.dark-theme {
+      background-color: #111;
+      color: #fff;
+    }
+    body.light-theme {
+      background-color: #f5f5f5;
+      color: #222;
+    }
+
+    /* Login Screen */
+    .login-screen {
+      padding: 50px;
+      text-align: center;
+    }
+    .login-screen input {
+      padding: 10px;
+      margin: 10px;
+      font-size: 16px;
+    }
+
+    /* Game Container */
+    .game-container {
+      padding: 20px;
+      max-width: 420px;
+      margin: auto;
+      position: relative;
+      display: none;
+    }
+
+    /* Theme toggle button */
+    #themeToggle {
+      margin-bottom: 15px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    body.light-theme #themeToggle {
+      background-color: #0056b3;
+      color: #fff;
+    }
+
+    /* Info Section */
+    .info p {
+      margin: 5px 0;
+    }
+
+    /* Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, 60px);
+      gap: 5px;
+      justify-content: center;
+      margin: 20px 0;
+    }
+
+    .cell {
+      width: 60px;
+      height: 60px;
+      background-color: #222;
+      color: white;
+      font-size: 24px;
+      line-height: 60px;
+      cursor: pointer;
+      border: 1px solid #555;
+      border-radius: 6px;
+      user-select: none;
+      transition: background-color 0.3s ease;
+      text-align: center;
+    }
+
+    .cell.revealed {
+      background-color: #444;
+      cursor: default;
+    }
+
+    body.light-theme .cell {
+      background-color: #ddd;
+      color: #222;
+      border: 1px solid #bbb;
+    }
+
+    body.light-theme .cell.revealed {
+      background-color: #bbb;
+    }
+
+    /* Settings */
+    .settings {
+      margin-bottom: 10px;
+    }
+
+    .settings input {
+      width: 50px;
+      font-size: 16px;
+      padding: 4px;
+      margin-left: 5px;
+    }
+
+    /* Buttons */
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      font-size: 14px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background-color: #28a745;
+      color: white;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #218838;
+    }
+
+    body.light-theme button {
+      background-color: #218838;
+      color: white;
+    }
+
+    body.light-theme button:hover {
+      background-color: #1e7e34;
+    }
+
+    /* Bottom Controls */
+    .bottom-controls {
+      margin-top: 20px;
+    }
+
+    /* Lose Message */
+    .lose-message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 280px;
+      transform: translate(-50%, -50%);
+      background-color: rgba(255, 0, 0, 0.9);
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+      padding: 20px 30px;
+      border-radius: 12px;
+      user-select: none;
+      pointer-events: auto;
+      z-index: 10;
+      text-align: center;
+      animation: pulse 1.5s infinite;
+      display: none;
+    }
+
+    #restartBtn {
+      margin-top: 15px;
+      padding: 10px 20px;
+      font-size: 18px;
+      background-color: #0056b3;
+      border-radius: 8px;
+      cursor: pointer;
+      border: none;
+      color: white;
+    }
+
+    #restartBtn:hover {
+      background-color: #003f7f;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 0 8px 2px rgba(255, 0, 0, 0.7);
+      }
+      50% {
+        box-shadow: 0 0 15px 5px rgba(255, 0, 0, 1);
+      }
+    }
+  </style>
+</head>
+<body class="dark-theme">
+  <div class="login-screen" id="loginScreen">
+    <h2>🔐 Login</h2>
+    <input type="text" id="usernameInput" placeholder="Enter username" />
+    <button onclick="login()">Start Game</button>
+  </div>
+
+  <div class="game-container" id="gameContainer">
+    <button id="themeToggle" onclick="toggleTheme()">Toggle Theme</button>
+    <div class="info">
+      <p>👤 <strong id="username"></strong></p>
+      <p>💎 Diamonds: <span id="diamonds">0</span></p>
+      <p>⭐ Points this round: <span id="points">0</span></p>
+      <p id="timerMessage"></p>
+    </div>
+
+    <div class="settings">
+      <label>Mines: <input type="number" id="mineCount" value="5" min="1" max="20" /></label>
+      <button onclick="startGame()">Start</button>
+      <button onclick="claimReward()">Claim Reward</button>
+    </div>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="bottom-controls">
+      <button onclick="cashOut()">Cash Out</button>
+    </div>
+
+    <div class="lose-message" id="loseMessage">
+      💥 You hit a mine!<br />
+      <button id="restartBtn" onclick="restartAfterLose()">Try Again</button>
+    </div>
+  </div>
+
+  <!-- Audio -->
+  <audio id="clickSound" src="https://www.soundjay.com/button/sounds/button-16.mp3"></audio>
+  <audio id="mineSound" src="https://www.soundjay.com/button/sounds/button-10.mp3"></audio>
+
+  <script>
+    let grid = [];
+    let revealed = new Set();
+    let diamonds = 0;
+    let currentPoints = 0;
+    let username = "";
+    const dailyRewardAmount = 500;
+    let gameOver = false;
+
+    function login() {
+      const input = document.getElementById("usernameInput").value.trim();
+      if (input === "") return alert("Enter a valid username");
+      username = input;
+      document.getElementById("username").textContent = username;
+      document.getElementById("loginScreen").style.display = "none";
+      document.getElementById("gameContainer").style.display = "block";
+
+      loadData();
+      updateDisplay();
+      checkDailyRewardTimer();
+      startGame();
+    }
+
+    function loadData() {
+      const saved = JSON.parse(localStorage.getItem(`minegame-${username}`)) || {
+        diamonds: 500,
+        lastReward: 0,
+      };
+      diamonds = saved.diamonds;
+      localStorage.setItem(`minegame-${username}`, JSON.stringify(saved));
+    }
+
+    function saveData() {
+      localStorage.setItem(
+        `minegame-${username}`,
+        JSON.stringify({ diamonds, lastReward: localStorage.getItem(`rewardTime-${username}`) || 0 })
+      );
+    }
+
+    function startGame() {
+      const mineCountInput = document.getElementById("mineCount");
+      let mineCount = parseInt(mineCountInput.value);
+      if (mineCount < 1 || mineCount > 20) {
+        alert("Mine count must be between 1 and 20.");
+        mineCountInput.value = 5;
+        mineCount = 5;
+      }
+
+      revealed.clear();
+      currentPoints = 0;
+      gameOver = false;
+      hideLoseMessage();
+      resetGridCells();
+
+      grid = Array(25).fill(0);
+      let placed = 0;
+      while (placed < mineCount) {
+        let i = Math.floor(Math.random() * 25);
+        if (grid[i] !== "M") {
+          grid[i] = "M";
+          placed++;
+        }
+      }
+
+      const gridEl = document.getElementById("grid");
+      gridEl.innerHTML = "";
+
+      for (let i = 0; i < 25; i++) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.dataset.index = i;
+        cell.onclick = () => revealCell(i, cell, mineCount);
+        gridEl.appendChild(cell);
+      }
+
+      updateDisplay();
+    }
+
+    function resetGridCells() {
+      const cells = document.querySelectorAll(".cell");
+      cells.forEach((c) => {
+        c.innerHTML = "";
+        c.classList.remove("revealed");
+      });
+    }
+
+    function revealCell(index, cell, mineCount) {
+      if (revealed.has(index) || gameOver) return;
+      revealed.add(index);
+      hideLoseMessage();
+
+      const clickSound = document.getElementById("clickSound");
+      const mineSound = document.getElementById("mineSound");
+
+      if (grid[index] === "M") {
+        cell.innerHTML = "💣";
+        cell.classList.add("revealed");
+        mineSound.play();
+        if (navigator.vibrate) navigator.vibrate(300);
+        gameOver = true;
+        showLoseMessage();
+        revealAll();
+        return;
+      }
+
+      cell.innerHTML = "💎";
+      cell.classList.add("revealed");
+      clickSound.play();
+
+      let reward = 10 + mineCount * 10;
+      currentPoints += reward;
+      updateDisplay();
+    }
+
+    function revealAll() {
+      const gridEl = document.getElementById("grid");
+      const cells = gridEl.children;
+      for (let i = 0; i < 25; i++) {
+        const cell = cells[i];
+        if (!cell.classList.contains("revealed")) {
+          cell.classList.add("revealed");
+          cell.innerHTML = grid[i] === "M" ? "💣" : "💎";
+        }
+      }
+    }
+
+    function cashOut() {
+      if (gameOver) {
+        alert("Game over! Please restart before cashing out.");
+        return;
+      }
+      diamonds += currentPoints;
+      currentPoints = 0;
+      updateDisplay();
+      saveData();
+      revealAll();
+      setTimeout(() => {
+        startGame();
+      }, 2000);
+    }
+
+    function updateDisplay() {
+      document.getElementById("diamonds").textContent = diamonds;
+      document.getElementById("points").textContent = currentPoints;
+    }
+
+    function claimReward() {
+      const now = Date.now();
+      const lastClaim = parseInt(localStorage.getItem(`rewardTime-${username}`)) || 0;
+      const diff = now - lastClaim;
+      if (diff < 24 * 60 * 60 * 1000) {
+        alert("You already claimed your daily reward. Try again later.");
+        return;
+      }
+      diamonds += dailyRewardAmount;
+      localStorage.setItem(`rewardTime-${username}`, now.toString());
+      updateDisplay();
+      saveData();
+      alert("🎉 Daily reward claimed!");
+      checkDailyRewardTimer();
+    }
+
+    function checkDailyRewardTimer() {
+      const msg = document.getElementById("timerMessage");
+      const now = Date.now();
+      const lastClaim = parseInt(localStorage.getItem(`rewardTime-${username}`)) || 0;
+      const nextTime = lastClaim + 24 * 60 * 60 * 1000;
+      if (now >= nextTime) {
+        msg.textContent = "🎁 Daily reward available!";
+      } else {
+        let hours = Math.floor((nextTime - now) / 1000 / 3600);
+        let mins = Math.floor(((nextTime - now) / 1000 % 3600) / 60);
+        msg.textContent = `Next daily reward in ${hours}h ${mins}m`;
+      }
+      setTimeout(checkDailyRewardTimer, 60000);
+    }
+
+    function showLoseMessage() {
+      document.getElementById("loseMessage").style.display = "block";
+    }
+
+    function hideLoseMessage() {
+      document.getElementById("loseMessage").style.display = "none";
+    }
+
+    function restartAfterLose() {
+      currentPoints = 0;
+      updateDisplay();
+      startGame();
+      hideLoseMessage();
+    }
+
+    function toggleTheme() {
+      const body = document.body;
+      if (body.classList.contains("dark-theme")) {
+        body.classList.remove("dark-theme");
+        body.classList.add("light-theme");
+      } else {
+        body.classList.remove("light-theme");
+        body.classList.add("dark-theme");
+      }
+    }
+
+    // Apply saved theme if available
+    window.addEventListener("DOMContentLoaded", () => {
+      const savedTheme = localStorage.getItem("theme");
+      if (savedTheme) {
+        document.body.classList.remove("dark-theme", "light-theme");
+        document.body.classList.add(savedTheme);
+      }
+    });
+  </script>
+</body>
+</html>
